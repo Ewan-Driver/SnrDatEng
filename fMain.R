@@ -14,13 +14,15 @@ fLoadPackages('tidyverse')
 
 
 # Dependancies
-source('R/fIngestData.R')
-# source('R/fTransformData.R')
-# source('R/fAnalyseData.R')
+source('R_Functions/fIngestData.R')
+source('R_Functions/fTransformData.R')
+# source('R_Functions/fAnalyseData.R')
 
 
 # Data Ingestion
 DataFramesList <- fIngestData()
     
 # Data Transformation
+TransformedData <- fTransformData(DataFramesList)
+
 
