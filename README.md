@@ -1,6 +1,6 @@
 # Senior Data Engineer Interview Task
 
-
+![Data Engineering](https://github.com/Ewan-Driver/SnrDatEng/blob/main/DE.PNG?raw=true)
 
 ## Introduction
 
