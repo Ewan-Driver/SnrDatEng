@@ -41,7 +41,7 @@ fAnalyseData <- function(TransformedData, DataFramesList) {
                          Dispenses = sum(medications_DISPENSES),
                          DrugCost = sum(medications_BASE_COST), 
                          .groups = 'keep')    
-    
+
     # Medications
     AnalysisData$Medications <- DataFramesList$medications %>% 
         dplyr::group_by(medications_REASONDESCRIPTION) %>% 

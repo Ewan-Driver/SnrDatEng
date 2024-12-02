@@ -6,7 +6,8 @@ fTransformData <- function(DataFramesList) {
     # Calculate Age/Age at Death/Age at Encounter
     TransformedData$Demographics <- DataFramesList$patients %>% 
         dplyr::mutate(Age = dplyr::case_when(is.na(patients_DEATHDATE) ~ lubridate::as.period(interval(start = patients_BIRTHDATE, end = Sys.Date())),
-                                             T ~ lubridate::as.period(interval(start = patients_BIRTHDATE, end = patients_DEATHDATE))),
+                                           T ~ lubridate::as.period(interval(start = patients_BIRTHDATE, end = patients_DEATHDATE))),
+
                       AgeGroup = dplyr::case_when(Age@year > 90 ~ '90+',
                                                   Age@year > 79 ~ '80-89',
                                                   Age@year > 69 ~ '70-79',
