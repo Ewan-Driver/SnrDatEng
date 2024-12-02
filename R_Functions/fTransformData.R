@@ -6,8 +6,18 @@ fTransformData <- function(DataFramesList) {
     # Calculate Age/Age at Death/Age at Encounter
     TransformedData$Demographics <- DataFramesList$patients %>% 
         dplyr::mutate(Age = dplyr::case_when(is.na(patients_DEATHDATE) ~ lubridate::as.period(interval(start = patients_BIRTHDATE, end = Sys.Date())),
-                                           T ~ lubridate::as.period(interval(start = patients_BIRTHDATE, end = patients_DEATHDATE)))) %>% 
-        dplyr::relocate(Age, .before = patients_SSN)
+                                             T ~ lubridate::as.period(interval(start = patients_BIRTHDATE, end = patients_DEATHDATE))),
+                      AgeGroup = dplyr::case_when(Age@year > 90 ~ '90+',
+                                                  Age@year > 79 ~ '80-89',
+                                                  Age@year > 69 ~ '70-79',
+                                                  Age@year > 59 ~ '60-69',
+                                                  Age@year > 49 ~ '50-59',
+                                                  Age@year > 39 ~ '40-49',
+                                                  Age@year > 29 ~ '30-39',
+                                                  Age@year > 19 ~ '20-29',
+                                                  T ~ '<20')) %>% 
+        
+        dplyr::relocate(c(Age, AgeGroup), .before = patients_SSN)
     
     
     # Create Merged Data Set

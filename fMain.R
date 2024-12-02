@@ -10,13 +10,13 @@ fLoadPackages <- function(...) {
     }
 }
 
-fLoadPackages('tidyverse')
+fLoadPackages('tidyverse', 'leaflet', 'shiny', 'DT', 'shinydashboard')
 
 
 # Dependancies
 source('R_Functions/fIngestData.R')
 source('R_Functions/fTransformData.R')
-# source('R_Functions/fAnalyseData.R')
+source('R_Functions/fAnalyseData.R')
 
 
 # Data Ingestion
@@ -25,4 +25,5 @@ DataFramesList <- fIngestData()
 # Data Transformation
 TransformedData <- fTransformData(DataFramesList)
 
-
+# Exploartory Analysis
+AnalysisData <- fAnalyseData(TransformedData, DataFramesList)
