@@ -67,7 +67,7 @@ fAnalyseData <- function(TransformedData, DataFramesList) {
     
     
     AnalysisData$FinalData <- FinalData %>% 
-        dplyr::mutate(Condition = dplyr::case_when(TreatmentDescription %in% Top10Treatments$TreatmentDescription ~ TreatmentDescription,
+        dplyr::mutate(Condition = dplyr::case_when(TreatmentDescription %in% AnalysisData$Top10Treatments$TreatmentDescription ~ TreatmentDescription,
                                                    T ~ 'Other'))
     
     
