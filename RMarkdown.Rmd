@@ -1,0 +1,227 @@
+---
+title: "Senior Data Engineer Interview Report"
+author: "Ewan Driver"
+date: "2024-12-04"
+output: 
+  html_document:
+    css: 'images/style.css'   
+runtime: shiny
+---
+
+<style>
+.main-container {
+    max-width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+.row {display: flex;}
+.column {flex: 45%;}
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(leaflet)
+library(shiny)
+library(DT)
+
+
+source('fMain.R')
+
+
+```
+
+<hr>
+
+This report contains analysis of a sample of 1000 patients from Synthea – a synthetic health dataset, which generates synthetic electronic health record (EHR) data.
+There were 1171 unique patients in the sample data and 53346 Encounters associated with these patients.
+The medical conditions, procedures, medications, care plans and the facility information for each encounter were mapped to each encounter and then some sample outputs were created to display some of that information.
+
+The sample data set covered a period from 21st July 1912 through to 28th April 2020.
+
+
+The set of filters below can be applied to the visualisations. To do this select the options you would like to see and then click on the 'Apply Filters' button. The visualisations will take a while to refresh and whilst they are doing so a Modal window will display indicating that the data is loading.
+
+
+## Filters
+
+<hr>
+
+```{r load data, include=FALSE}
+
+
+    Data <- AnalysisData$FinalData
+    FilteredData <- reactiveVal(Data)
+    
+    
+    # Set Column Names
+    ColumnNames <- c(' ', 'Unique Patients', 'Patient Encounters', 'Medication Costs', 'Procedure Costs')
+
+```
+
+<div class="row">
+
+<div class="col-sm-3">
+
+```{r Input1, echo=FALSE}
+
+shiny::sliderInput('ageinput', 'Patient Ages at time of Encounter', min = min(Data$ActAge), max = max(Data$ActAge), value = c(min(Data$ActAge),max(Data$ActAge)))
+
+```
+
+</div>
+
+<div class="col-sm-3">
+
+```{r Input2, echo=FALSE}
+
+shiny::checkboxGroupInput('gender', 'Gender', choices = c('Male', 'Female'), inline = TRUE, selected = c('Male', 'Female'))
+
+```
+
+</div>
+
+<div class="col-sm-3">
+
+```{r Input3, echo=FALSE}
+
+shiny::selectInput('condition', 'Select Medical Condition', choices = c('All', unique(Data$Condition)))
+
+```
+
+</div>
+
+<div class="col-sm-3">
+
+```{r Input4, echo=FALSE}
+
+actionButton('applyfilters', 'Apply Filters')
+
+```
+
+</div>
+
+``` {r ObserveEvent, echo = FALSE}
+
+    observeEvent(input$applyfilters, {
+        
+        showModal(modalDialog('Loading....'))
+        if (input$condition == 'All') {
+            Data <- Data %>% 
+                dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1))
+            
+        } else {
+            Data <- Data %>% 
+                dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1) & Condition == input$condition)
+        }
+        
+        FilteredData(Data)
+        removeModal()
+    })
+
+
+    
+```
+
+</div>
+
+<hr>
+
+
+This plot and the table beneath it show the associated costs per year for the top 10 Medical Conditions in the sample data. The output of this plot is somewhat flawed as the sample data isn't evenly spread over its 90 year coverage period and therefore higher costs are linked to a higher number of encounters rather than a significant spike in costs around 2010.
+
+```{r graph, echo = FALSE}
+
+renderPlot({     
+            
+            FilteredData() %>%
+                dplyr::group_by(Condition, Year = year(encounters_START)) %>%
+                dplyr::summarise(n = n(),
+                                 Procedure_Costs = sum(procedures_BASE_COST, na.rm = TRUE),
+                                 Medication_Costs = sum(medications_TOTALCOST, na.rm = TRUE),
+                                 .groups = 'keep') %>%
+
+
+                ggplot(aes(x = Year, y = Medication_Costs + Procedure_Costs, fill = Condition)) +
+                geom_bar(stat = 'identity') +
+                labs(x = 'Year of Encounter', y = 'Associated Medication + Procedure Costs', fill='Top 10 Medical Conditions') +
+                scale_y_continuous(labels = scales::unit_format(unit = "M $", scale = 1e-6)) +
+                theme_minimal()
+            
+            
+        })
+```
+
+
+
+```{r table, echo = FALSE}
+
+
+renderDataTable({
+            
+            FilteredData() %>% 
+                dplyr::group_by(patients_GENDER) %>% 
+                # dplyr::mutate(patients_GENDER = dplyr::case_when(patients_GENDER == 'M' ~ '<img src="Male.png" height = "32px">',
+                #                                                  T ~ '<img src="Female.png" height = "32px">')) %>% 
+                dplyr::mutate(patients_GENDER = dplyr::case_when(patients_GENDER == 'M' ~ 'Male',
+                                                         T ~ 'Female')) %>% 
+                dplyr::summarise(`Unique Patients` = length(unique(patients_Id)),
+                                 `Patient Encounters` = length(encounters_Id),
+                                 `Medication Costs` = paste('$',formatC(round(sum(medications_TOTALCOST, na.rm = T), 0), big.mark=',', format = 'f', digits = 0)),
+                                 `Procedure Costs` = paste('$',formatC(round(sum(procedures_BASE_COST, na.rm = T), 0), big.mark=',', format = 'f', digits = 0)),
+                                 .groups = 'keep') %>% 
+                
+                DT::datatable(colnames = ColumnNames,
+                              rownames = FALSE,
+                              escape = FALSE,
+                              options = list(
+                                  dom = 't'
+                              ))
+        })
+
+
+```
+
+<br>
+
+<hr>
+
+
+This map shows the distribution of healthcare facilities and the number of encounters that occurred in each facility. Clicking on any of the dots will display the details of this along with the associated cost information. 
+
+<br>
+
+
+```{r Map, echo = FALSE}
+
+    renderLeaflet({
+        
+        mapData <- FilteredData() %>%
+                dplyr::group_by(organizations_NAME, organizations_LON, organizations_LAT) %>% 
+                dplyr::summarise(Encounters = length(encounters_Id),
+                                 MedicationCosts = paste('$',formatC(round(sum(medications_TOTALCOST, na.rm = T), 0), big.mark=',', format = 'f', digits = 0)),
+                                 ProcedureCosts = paste('$',formatC(round(sum(procedures_BASE_COST, na.rm = T), 0), big.mark=',', format = 'f', digits = 0)),
+                                 .groups = 'keep')
+            
+            # Set color palette
+            pal <- leaflet::colorNumeric(palette = c("#002664", "#D7153A"), domain = unique(mapData$Encounters))
+            
+            leaflet::leaflet(data = mapData, height = '800px') %>%
+                leaflet::addTiles() %>%
+                leaflet::addCircleMarkers(lng = mapData$organizations_LON,
+                                          lat = mapData$organizations_LAT,
+                                          popup = paste0('Facility: ', mapData$organizations_NAME,
+                                                         '<br>Encounters: ', mapData$Encounters,
+                                                         '<br>Medication Costs: ', mapData$MedicationCosts,
+                                                         '<br>Procedure Costs: ', mapData$ProcedureCosts),
+                                          fillColor = ~pal(mapData$Encounters),
+                                          fillOpacity = 1,
+                                          radius = sqrt(mapData$Encounters)/4,
+                                          color = ~pal(mapData$Encounters)) %>%
+                leaflet::addLegend("topright", pal = pal, values = mapData$Encounters, title = 'Encounters per Facility', opacity = 1) %>% 
+                setView(-71.85206, 42.16108, zoom = 9)
+    })
+
+```
+
+<hr>

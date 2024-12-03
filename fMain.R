@@ -28,5 +28,5 @@ cat(paste0('Transforming the Data', '\n'))
 TransformedData <- fTransformData(DataFramesList)
 
 # Exploartory Analysis
-cat(paste0('Preparing the data for use in the App', '\n'))
+cat(paste0('Preparing the data for use in the App', '\n', 'Please wait.....', '\n'))
 AnalysisData <- fAnalyseData(TransformedData, DataFramesList)
