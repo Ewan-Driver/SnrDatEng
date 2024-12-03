@@ -2,6 +2,7 @@
 
 ![Data Engineering](https://github.com/Ewan-Driver/SnrDatEng/blob/main/DE.PNG?raw=true)
 
+
 ## Introduction
 
 This readme file outlines the tasks set for the Senior Data Engineer Interview and the approach taken to complete them.
