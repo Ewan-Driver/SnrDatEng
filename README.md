@@ -1,6 +1,6 @@
 # Senior Data Engineer Interview Task
 
-![Data Engineering](https://github.com/Ewan-Driver/SnrDatEng/blob/main/DE.PNG?raw=true)
+![Data Engineering](https://github.com/Ewan-Driver/SnrDatEng/blob/main/images/DE.PNG?raw=true)
 
 
 ## Introduction
@@ -27,4 +27,6 @@ The packages used in the application will automatically load or be install if th
 
 ## How to run and use the outputs
 
-To run both the code and the Visualisations open the file called App.R and click the ![Run App](https://github.com/Ewan-Driver/SnrDatEng/blob/main/RunApp.PNG?raw=true) button.
+To run both the code and the Visualisations open the RMarkdown file 
+
+and click the ![Run App](https://github.com/Ewan-Driver/SnrDatEng/blob/main/images/RunApp.PNG?raw=true) button.
