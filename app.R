@@ -12,45 +12,52 @@ ui <-
                          includeCSS("./www/style.css")),                
                         
         dashboardBody(
+            # Filters
             fluidRow(
                 box(
                     column(width = 3, 
-                           sliderInput('ageinput', 'Select Patient Ages to Display', min = min(Data$ActAge), max = max(Data$ActAge), value = c(min(Data$ActAge),max(Data$ActAge))),
+                           sliderInput('ageinput', 'Select Patient Ages to Display', min = 0, max = 100, value = c(0,100)),
                            ),
                     column(width = 3,
-                           checkboxGroupInput('gender', 'Gender', choices = c('Male', 'Female'), inline = TRUE, selected = c('Male', 'Female')),
+                           checkboxGroupInput('gender', 'Gender', choices = c('Male', 'Female'), selected = c('Male', 'Female'), inline = TRUE),
                            ),
                     column(width = 3,
-                           selectInput('condition', 'Select Medical Condition', choices = c('All', AnalysisData$Diagnosis$conditions_DESCRIPTION[AnalysisData$Diagnosis$n > 200]))
+                           selectInput('condition', 'Select Medical Condition', choices = NULL)
+                    ),
+                    column(width = 3,
+                           actionButton('applyfilters', 'Apply Filters')
                     )
                 )
             ),
             
+            
             fluidRow(
                 column(width = 12,
-                       h3(style = 'margin-left: 5%; color: #fff;', 'Population Distribution and Medications Information'))
+                       h3(style = 'margin-left: 5%; color: #000;', 'Medical Conditions over time and Associated Medications Costs'))
             ),
             
+            # Graph and Table
             fluidRow(
                 box(
                     column(width = 8,
-                           plotOutput(('poppyramid'))     
+                           shinycssloaders::withSpinner(plotOutput('poppyramid'))    
                     ),
                     column(width = 4,
-                           dataTableOutput('medications')     
+                           shinycssloaders::withSpinner(dataTableOutput('medications'))    
                     )
                 )       
             ),
 
             fluidRow(
                 column(width = 12,
-                       h3(style = 'margin-left: 5%; color: #fff;', 'Geographical Patient Distribution'))
+                       h3(style = 'margin-left: 5%; color: #000;', 'Healthcare Facilities'))
             ),
-            
+            # Map
             fluidRow(
                 box(
                     column(width = 12,
-                           leafletOutput('map'))
+                           shinycssloaders::withSpinner(leafletOutput('map'))
+                    )
                 )
             )
         )
@@ -67,169 +74,126 @@ server <- function(input, output, session) {
     
     # Load Data ----
     # ====================================================
-    Data <- TransformedData$MergedData %>% 
-        dplyr::group_by(patients_Id, longitude = patients_LON, latitude = patients_LAT, patients_CITY, patients_RACE, ActAge = Age@year, AGE = AgeGroup,
-                        patients_GENDER, conditions_DESCRIPTION) %>% 
-        dplyr::summarise(n = n(), .groups = 'keep')
+
+    Data <- AnalysisData$FinalData
+    FilteredData <- reactiveVal(Data)
     
-    mapData <- reactiveVal(Data)
-    
-    popData <- reactiveVal(
-        Data
-    )
-    
-    
-    MedicationsData <- TransformedData$MergedData %>% 
-        dplyr::filter(!is.na(medications_DESCRIPTION)) %>% 
-        dplyr::select(conditions_DESCRIPTION, medications_DESCRIPTION, medications_DISPENSES, medications_BASE_COST, patients_RACE, 
-                      ActAge = Age, AGE = AgeGroup, patients_GENDER) %>% 
-        dplyr::mutate(ActAge = ActAge@year)
-    
-    MedsData <- reactiveVal(MedicationsData)
-    
-    # Set color palette
-    pal <- leaflet::colorFactor(c('#D7153A', '#002664'), levels = c('M', 'F'))
     
     # Set Column Names
-    ColumnNames <- c(' ', 'Patient Encounters', 'Medications Dispensed', 'Associated Costs')
+    ColumnNames <- c(' ', 'Patient Encounters', 'Medication Costs', 'Procedure Costs')
     
+    
+    
+    # Update Inputs
+    # ====================================================
+    
+    observe ({
+        updateSelectInput(session, 'condition', choices = c('All', unique(Data$Condition)))
+        updateSliderInput(session, 'ageinput', min = min(Data$ActAge), max = max(Data$ActAge), value = c(min(Data$ActAge),max(Data$ActAge)))
+        updateCheckboxGroupInput(session, 'gender', choices = c('Male', 'Female'), selected = c('Male', 'Female'))
+    })
+    
+    
+    # Observe Filters
+    # ====================================================
+    
+    observeEvent(input$applyfilters, {
+        
+        showModal(modalDialog('Loading....'))
+        if (input$condition == 'All') {
+            Data <- Data %>% 
+                dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1))
+
+        } else {
+            Data <- Data %>% 
+                dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1) & Condition == input$condition)
+        }
+        
+        FilteredData(Data)
+        removeModal()
+    })
     
 
+    
     # Outputs ----
     # ====================================================
     observe({
     
-
-    output$poppyramid <- renderPlot({
+        # Graph Output
+        output$poppyramid <- renderPlot({     
+            
+            FilteredData() %>%  
+                    dplyr::group_by(Condition, Year = year(encounters_START)) %>% 
+                    dplyr::summarise(n = n(),
+                                     Procedure_Costs = sum(procedures_BASE_COST, na.rm = TRUE),
+                                     Medication_Costs = sum(medications_TOTALCOST, na.rm = TRUE),
+                                     .groups = 'keep') %>% 
+                    
+                    
+                ggplot(aes(x = Year, y = Medication_Costs + Procedure_Costs, fill = Condition)) + 
+                geom_bar(stat = 'identity') + 
+                labs(y = 'Associated Medication + Procedure Costs', fill='Top 10 Medical Conditions') + 
+                scale_y_continuous(labels = scales::unit_format(unit = "M $", scale = 1e-6)) + 
+                theme_minimal()
+            
+        })
         
-        if(input$condition == 'All') {
-            
-            popData() %>% 
-                dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1)) %>%
-                dplyr::mutate(Gender = dplyr::case_when(patients_GENDER == 'F' ~ 'Female', T ~ 'Male')) %>% 
-                dplyr::group_by(`AGE GROUP` = AGE, Gender) %>%      
-                dplyr::summarise(Count = n(), .groups = 'keep') %>%
-                dplyr::mutate(Count = dplyr::case_when(Gender == 'Female' ~ -Count, T ~ Count),
-                              Legend = paste0(Gender)) %>%
-                ggplot(aes(x = Count, y = `AGE GROUP`, fill = Gender)) + 
-                geom_col() + 
-                scale_fill_manual(values = c('#002664', '#D7153A')) +
-                theme_minimal() + 
-                theme(legend.position = 'right') + 
-                theme(panel.grid = element_blank(), axis.text.x = element_blank())
-            
-        } else {
-            
-            popData() %>% 
-                dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1)) %>% 
-                dplyr::mutate(Category = dplyr::case_when(conditions_DESCRIPTION != input$condition | is.na(conditions_DESCRIPTION) ~ 'Without Selected Condition',
-                                                          T ~ 'With Selected Condition'),
-                              Gender = dplyr::case_when(patients_GENDER == 'F' ~ 'Female', T ~ 'Male'),
-                              Legend = paste0(Gender, ' ', Category)) %>% 
-                dplyr::group_by(`AGE GROUP` = AGE, Gender, Legend) %>%
-                dplyr::summarise(Count = n(), .groups = 'keep') %>%
-                dplyr::mutate(Count = dplyr::case_when(Gender == 'Female' ~ -Count, T ~ Count)) %>%
-                ggplot(aes(x = Count, y = `AGE GROUP`, fill = Legend)) + 
-                geom_col() + 
-                scale_fill_manual(values = c('#002664', '#00266490', '#D7153A', '#D7153A90')) +
-                theme_minimal() + 
-                theme(legend.position = 'right') + 
-                theme(panel.grid = element_blank(), axis.text.x = element_blank())
-        }
-    })
+        
 
+        # Table Output    
+        output$medications <- renderDataTable({
     
-    output$medications <- renderDataTable({
-        
-        if (input$condition == 'All') {
-            
-            MedsData(MedicationsData %>% dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1)))
-
-            DT::datatable(MedsData() %>% 
-                              dplyr::group_by(patients_GENDER) %>%
-                              dplyr::mutate(patients_GENDER = dplyr::case_when(patients_GENDER == 'M' ~ '<img src="img/Male.png" height = "32px">',
-                                                                               T ~ '<img src="img/Female.png" height = "32px">')) %>% 
-                              dplyr::summarise(Patients = n(),
-                                               Dispenses = sum(medications_DISPENSES),
-                                               DrugCost = paste('$',formatC(round(sum(medications_BASE_COST, 0)), big.mark=',', format = 'f', digits = 0)), 
-                                               .groups = 'keep') %>% 
-                              dplyr::arrange(desc(DrugCost)),
-                          
-                          colnames = ColumnNames,
-                          rownames = FALSE,
-                          escape = FALSE,
-                          options = list(
-                              dom = 't'
-                          ))
-            
-        } else {
-            
-            MedsData(MedicationsData %>% dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1) & 
-                                                           conditions_DESCRIPTION == input$condition))
-            
-             DT::datatable(MedsData() %>% 
-                               dplyr::group_by(patients_GENDER) %>%
-                               dplyr::mutate(patients_GENDER = dplyr::case_when(patients_GENDER == 'M' ~ '<img src="img/Male.png" height = "32px">',
-                                                                                T ~ '<img src="img/Female.png" height = "32px">')) %>% 
-                               dplyr::summarise(Patients = n(),
-                                                Dispenses = sum(medications_DISPENSES),
-                                                DrugCost = paste('$',formatC(round(sum(medications_BASE_COST, 0)), big.mark=',', format = 'f', digits = 0)), 
-                                                .groups = 'keep') %>% 
-                               dplyr::arrange(desc(DrugCost)),
-                           
-                           colnames = ColumnNames,
-                           rownames = FALSE,
-                           escape = FALSE,
-                           options = list(
-                               dom = 't'
-                           ))
-        }
-    })
+            FilteredData() %>% 
+                    dplyr::group_by(patients_GENDER) %>% 
+                    dplyr::mutate(patients_GENDER = dplyr::case_when(patients_GENDER == 'M' ~ '<img src="img/Male.png" height = "32px">',
+                                                                     T ~ '<img src="img/Female.png" height = "32px">')) %>% 
+                    dplyr::summarise(`Patient Encounters` = length(encounters_Id),
+                                     `Medication Costs` = paste('$',formatC(round(sum(medications_TOTALCOST, na.rm = T), 0), big.mark=',', format = 'f', digits = 0)),
+                                     `Procedure Costs` = paste('$',formatC(round(sum(procedures_BASE_COST, na.rm = T), 0), big.mark=',', format = 'f', digits = 0)),
+                                     .groups = 'keep') %>% 
+                
+                DT::datatable(colnames = ColumnNames,
+                              rownames = FALSE,
+                              escape = FALSE,
+                              options = list(
+                                  dom = 't'
+                              ))
+        })
+    
+    
+    
+    
         
     
-
-    output$map <- renderLeaflet({
-        
-        if (input$condition == 'All') {
-            mapData(Data %>% dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1)))
+        # Map Output
+        output$map <- renderLeaflet({
+    
+            mapData <- FilteredData() %>%
+                dplyr::group_by(organizations_NAME, organizations_LON, organizations_LAT) %>% 
+                dplyr::summarise(Encounters = length(encounters_Id),
+                                 MedicationCosts = paste('$',formatC(round(sum(medications_TOTALCOST, na.rm = T), 0), big.mark=',', format = 'f', digits = 0)),
+                                 ProcedureCosts = paste('$',formatC(round(sum(procedures_BASE_COST, na.rm = T), 0), big.mark=',', format = 'f', digits = 0)),
+                                 .groups = 'keep')
             
-        mapData() %>% 
-            leaflet::leaflet() %>% 
-            leaflet::addTiles() %>% 
-            leaflet::addCircleMarkers(data = mapData(), 
-                                      lng = mapData()$longitude,
-                                      lat = mapData()$latitude,
-                                      popup = paste0('City: ', mapData()$patients_CITY, 
-                                                     '<br>Age: ', mapData()$ActAge, ' years old',
-                                                     '<br>Gender: ', mapData()$patients_GENDER),
-                                      fillColor = ~pal(mapData()$patients_GENDER),
+            # Set color palette
+            pal <- leaflet::colorNumeric(palette = c("#002664", "#D7153A"), domain = unique(mapData$Encounters))
+            
+            leaflet::leaflet(data = mapData) %>%
+            leaflet::addTiles() %>%
+            leaflet::addCircleMarkers(lng = mapData$organizations_LON,
+                                      lat = mapData$organizations_LAT,
+                                      popup = paste0('Facility: ', mapData$organizations_NAME,
+                                                     '<br>Encounters: ', mapData$Encounters,
+                                                     '<br>Medication Costs: ', mapData$MedicationCosts,
+                                                     '<br>Procedure Costs: ', mapData$ProcedureCosts),
+                                      fillColor = ~pal(mapData$Encounters),
                                       fillOpacity = 1,
-                                      radius = 1,
-                                      color = ~pal(mapData()$patients_GENDER)) %>% 
-            setView(-72.05206, 42.36108, zoom = 8)
-        
-        } else {
-            
-            mapData(Data %>% dplyr::filter(ActAge >= input$ageinput[1] & ActAge <= input$ageinput[2] & patients_GENDER %in% str_sub(input$gender,1,1) & 
-                                               conditions_DESCRIPTION == input$condition))
-            mapData() %>% 
-                leaflet::leaflet() %>% 
-                leaflet::addTiles() %>% 
-                leaflet::addCircleMarkers(data = mapData(), 
-                                          lng = mapData()$longitude,
-                                          lat = mapData()$latitude,
-                                          popup = paste0('City: ', mapData()$patients_CITY, 
-                                                         '<br>Age: ', mapData()$ActAge, ' years old',
-                                                         '<br>Gender: ', mapData()$patients_GENDER),
-                                          fillColor = ~pal(mapData()$patients_GENDER),
-                                          fillOpacity = 1,
-                                          radius = 1,
-                                          color = ~pal(mapData()$patients_GENDER)) %>% 
-                setView(-72.05206, 42.36108, zoom = 8)
-            
-        }
-    })
+                                      radius = sqrt(mapData$Encounters)/5,
+                                      color = ~pal(mapData$Encounters)) %>%
+            leaflet::addLegend("topright", pal = pal, values = mapData$Encounters, title = 'Encounters per Facility', opacity = 1) %>% 
+            setView(-71.85206, 42.16108, zoom = 8)
     
+            })
     })
 }
 
