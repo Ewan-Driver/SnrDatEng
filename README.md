@@ -21,12 +21,12 @@ In order to run the code in this repository you will need the following applicat
 
 o	RStudio
 
-The packages used in the application will automatically load or be install if the aren't already installed via the fLoadPackages in fMain.
+The packages used in the application will automatically load or be install if the aren't already installed via the fLoadPackages function contained within fMain.
 
 
 
 ## How to run and use the outputs
 
-To run both the code and the Visualisations open the RMarkdown file 
+To run both the code and the Visualisations open the RMarkdown file and click the ![Run Document](https://github.com/Ewan-Driver/SnrDatEng/blob/main/images/RunApp.PNG?raw=true) button.
 
-and click the ![Run App](https://github.com/Ewan-Driver/SnrDatEng/blob/main/images/RunApp.PNG?raw=true) button.
+The visual outputs in the rendered document can be filtered using the filters found at the top of the document. Choose the options you would like and then click the apply filter button.
