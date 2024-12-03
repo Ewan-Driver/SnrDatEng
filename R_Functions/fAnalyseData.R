@@ -5,10 +5,10 @@ fAnalyseData <- function(TransformedData, DataFramesList) {
     
     
     # Statistical Analysis
-    AnalysisData$MeanAge      <- mean(TransformedData$Demographics$Age@year)
-    AnalysisData$MedianAge    <- median(TransformedData$Demographics$Age@year)
-    AnalysisData$StdDev       <- sd(TransformedData$Demographics$Age@year)
-    AnalysisData$SummaryStats <- summary(TransformedData$Demographics$Age@year)
+    AnalysisData$MeanAge      <- mean(TransformedData$MergedData$Age@year)
+    AnalysisData$MedianAge    <- median(TransformedData$MergedData$Age@year)
+    AnalysisData$StdDev       <- sd(TransformedData$MergedData$Age@year)
+    AnalysisData$SummaryStats <- summary(TransformedData$MergedData$Age@year)
     
     # Data Coverage
     AnalysisData$StartDate <- min(TransformedData$MergedData$encounters_START)
@@ -18,20 +18,20 @@ fAnalyseData <- function(TransformedData, DataFramesList) {
     
     
     # Distribution by Age (current age or age at death) 
-    AnalysisData$Age <- TransformedData$Demographics %>% 
-        distinct(patients_Id, age = TransformedData$Demographics$Age@year) %>% 
+    AnalysisData$Age <- TransformedData$MergedData %>% 
+        distinct(patients_Id, age = TransformedData$MergedData$Age@year) %>% 
         dplyr::group_by(age) %>% 
         dplyr::summarise(n = n())
     
     # Distribution by Gender
-    AnalysisData$Gender <- TransformedData$Demographics %>% 
+    AnalysisData$Gender <- TransformedData$MergedData %>% 
         distinct(patients_Id, patients_GENDER) %>% 
         dplyr::group_by(patients_GENDER) %>% 
         dplyr::summarise(n = n())
     
     # Distribution by Age and Gender
-    AnalysisData$AgeAndGender <- TransformedData$Demographics %>% 
-        distinct(patients_Id, age = TransformedData$Demographics$Age@year, patients_GENDER) %>% 
+    AnalysisData$AgeAndGender <- TransformedData$MergedData %>% 
+        distinct(patients_Id, age = TransformedData$MergedData$Age@year, patients_GENDER) %>% 
         dplyr::group_by(age, patients_GENDER) %>% 
         dplyr::summarise(n = n(), .groups = 'keep')
     
@@ -42,7 +42,7 @@ fAnalyseData <- function(TransformedData, DataFramesList) {
         dplyr::group_by(patients_Id) %>% 
         dplyr::summarise(n = length(unique(encounters_Id)))
     
-
+    
     
     
     # Final Data for Analysis and Visualisation

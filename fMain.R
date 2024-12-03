@@ -20,10 +20,13 @@ source('R_Functions/fAnalyseData.R')
 
 
 # Data Ingestion
+cat(paste0('Ingesting the Data', '\n'))
 DataFramesList <- fIngestData()
-    
+
 # Data Transformation
+cat(paste0('Transforming the Data', '\n'))
 TransformedData <- fTransformData(DataFramesList)
 
 # Exploartory Analysis
+cat(paste0('Preparing the data for use in the App', '\n'))
 AnalysisData <- fAnalyseData(TransformedData, DataFramesList)

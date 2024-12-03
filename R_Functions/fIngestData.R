@@ -36,7 +36,3 @@ fIngestData <- function() {
     
     return(DataFramesList)
 }
-
-
-
-
