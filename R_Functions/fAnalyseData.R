@@ -3,6 +3,20 @@ fAnalyseData <- function(TransformedData, DataFramesList) {
     
     AnalysisData <- list()
     
+    
+    # Statistical Analysis
+    AnalysisData$MeanAge      <- mean(TransformedData$Demographics$Age@year)
+    AnalysisData$MedianAge    <- median(TransformedData$Demographics$Age@year)
+    AnalysisData$StdDev       <- sd(TransformedData$Demographics$Age@year)
+    AnalysisData$SummaryStats <- summary(TransformedData$Demographics$Age@year)
+    
+    # Data Coverage
+    AnalysisData$StartDate <- min(TransformedData$MergedData$encounters_START)
+    AnalysisData$EndDate   <- max(TransformedData$MergedData$encounters_START)
+    
+    
+    
+    
     # Distribution by Age (current age or age at death) 
     AnalysisData$Age <- TransformedData$Demographics %>% 
         distinct(patients_Id, age = TransformedData$Demographics$Age@year) %>% 
@@ -28,43 +42,33 @@ fAnalyseData <- function(TransformedData, DataFramesList) {
         dplyr::group_by(patients_Id) %>% 
         dplyr::summarise(n = length(unique(encounters_Id)))
     
-    # Conditions
-    AnalysisData$Diagnosis <- DataFramesList$conditions %>% 
-        dplyr::group_by(conditions_DESCRIPTION) %>% 
-        dplyr::summarise(n = n())
-    
-    # Conditions And Meds
-    AnalysisData$DiagnosisMeds <- DataFramesList$conditions %>% 
-        dplyr::left_join(DataFramesList$medications, by = c('conditions_ENCOUNTER' = 'medications_ENCOUNTER')) %>% 
-        dplyr::group_by(conditions_DESCRIPTION, medications_DESCRIPTION) %>% 
-        dplyr::summarise(n = n(),
-                         Dispenses = sum(medications_DISPENSES),
-                         DrugCost = sum(medications_BASE_COST), 
-                         .groups = 'keep')    
 
-    # Medications
-    AnalysisData$Medications <- DataFramesList$medications %>% 
-        dplyr::group_by(medications_REASONDESCRIPTION) %>% 
+    
+    
+    # Final Data for Analysis and Visualisation
+    FinalData <- TransformedData$MergedData %>% 
+        dplyr::group_by(encounters_Id, TreatmentDescription, encounters_START, encounters_REASONDESCRIPTION, encounters_TOTAL_CLAIM_COST, 
+                        conditions_DESCRIPTION,
+                        procedures_DESCRIPTION, procedures_BASE_COST, procedures_REASONDESCRIPTION, 
+                        medications_DESCRIPTION, medications_BASE_COST, medications_TOTALCOST, medications_REASONDESCRIPTION, 
+                        careplans_DESCRIPTION, careplans_REASONDESCRIPTION, 
+                        patients_Id, AgeGroup, ActAge = Age@year, patients_GENDER,
+                        organizations_NAME, organizations_LAT, organizations_LON, organizations_REVENUE) %>% 
+        dplyr::summarise(n = n(), .groups = 'keep')
+    
+    
+    AnalysisData$Top10Treatments <- FinalData %>% 
+        dplyr::group_by(TreatmentDescription) %>% 
         dplyr::summarise(n = n(),
-                         Dispenses = sum(medications_DISPENSES),
-                         DrugCost = sum(medications_BASE_COST), 
-                         .groups = 'keep')
-    
-    # Procedures
-    AnalysisData$Procedures <- DataFramesList$procedures %>% 
-        dplyr::group_by(procedures_DESCRIPTION) %>% 
-        dplyr::summarise(n = n())
+                         Costs = sum(procedures_BASE_COST, na.rm = TRUE) + sum(medications_TOTALCOST, na.rm = TRUE)) %>% 
+        dplyr::arrange(desc(Costs)) %>% 
+        dplyr::filter(!is.na(TreatmentDescription)) %>% 
+        head(10)  
     
     
-    # Statistical Analysis
-    MeanAge <- mean(TransformedData$Demographics$Age@year)
-    MedianAge <- median(TransformedData$Demographics$Age@year)
-    StdDev <- sd(TransformedData$Demographics$Age@year)
-    SummaryStats <- summary(TransformedData$Demographics$Age@year)
-    
-    # Data Coverage
-    min(TransformedData$MergedData$encounters_START)
-    max(TransformedData$MergedData$encounters_START)
+    AnalysisData$FinalData <- FinalData %>% 
+        dplyr::mutate(Condition = dplyr::case_when(TreatmentDescription %in% Top10Treatments$TreatmentDescription ~ TreatmentDescription,
+                                                   T ~ 'Other'))
     
     
     return(AnalysisData)

@@ -27,7 +27,14 @@ fTransformData <- function(DataFramesList) {
         dplyr::left_join(DataFramesList$organizations, by = c('encounters_ORGANIZATION' = 'organizations_Id'), relationship = 'many-to-one') %>% 
         dplyr::left_join(DataFramesList$conditions, by = c('patients_Id' = 'conditions_PATIENT', 'encounters_Id' = 'conditions_ENCOUNTER'), relationship = 'one-to-many') %>% 
         dplyr::left_join(DataFramesList$procedures, by = c('encounters_Id' = 'procedures_ENCOUNTER'), relationship = 'many-to-many') %>% 
-        dplyr::left_join(DataFramesList$medications, by = c('encounters_Id' = 'medications_ENCOUNTER'), relationship = 'many-to-many')
+        dplyr::left_join(DataFramesList$medications, by = c('encounters_Id' = 'medications_ENCOUNTER'), relationship = 'many-to-many') %>% 
+        dplyr::left_join(DataFramesList$careplans, by = c('encounters_Id' = 'careplans_ENCOUNTER'), relationship = 'many-to-many') %>% 
+        dplyr::mutate(TreatmentDescription = dplyr::case_when(!is.na(encounters_REASONDESCRIPTION) ~ encounters_REASONDESCRIPTION,
+                                                              !is.na(procedures_REASONDESCRIPTION) ~ procedures_REASONDESCRIPTION,
+                                                              !is.na(medications_REASONDESCRIPTION) ~ medications_REASONDESCRIPTION,
+                                                              !is.na(conditions_DESCRIPTION) ~ conditions_DESCRIPTION,
+                                                              !is.na(careplans_REASONDESCRIPTION) ~ careplans_REASONDESCRIPTION,
+                                                              T ~ encounters_REASONDESCRIPTION))
 
     
     return(TransformedData)

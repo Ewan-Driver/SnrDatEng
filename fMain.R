@@ -10,7 +10,7 @@ fLoadPackages <- function(...) {
     }
 }
 
-fLoadPackages('tidyverse', 'leaflet', 'shiny', 'DT', 'shinydashboard')
+fLoadPackages('tidyverse', 'leaflet', 'shiny', 'DT', 'shinydashboard', 'scales')
 
 
 # Dependancies
