@@ -1,0 +1,104 @@
+
+.box {
+    position: relative;
+    border-radius: 20px;
+    background: #fff;
+    border-top: 3px solid #d2d6de;
+    margin: 20px;
+    width: 190%;
+    margin-left: 5%;
+    margin-right: 5%;
+    box-shadow: 0 1px 1px 1px rgb(0, 0, 0, .5);
+}
+
+
+/* logo */
+.skin-blue .main-header .logo {
+                      background-color: #000;
+                      height: 50px;
+                      }
+
+/* logo when hovered */
+.skin-blue .main-header .logo:hover {
+                      background-color: #000;
+                      height: 50px;
+                      }
+
+/* navbar (rest of the header) */
+.skin-blue .main-header .navbar {
+                      background-color: #000;
+                      height: 50px;
+                      }   
+
+.content {
+    min-height: 250px;
+    padding: 15px;
+    margin-right: auto;
+    margin-left: auto;
+    padding-left: 15px;
+    padding-right: 15px;
+    background-color: #fff;
+}
+
+.skin-blue .main-header .navbar .sidebar-toggle {
+    color: #fff;
+    visibility: hidden;
+}
+
+.shiny-input-checkboxgroup.shiny-input-container-inline label~.shiny-options-group, .shiny-input-radiogroup.shiny-input-container-inline label~.shiny-options-group {
+    margin-top: 10px;
+    font-size: large;
+    margin-left: 25px;
+}
+
+.label {
+    font-size: larger;
+}
+
+.btn-default {
+    background-color: #f4f4f4;
+    color: #444;
+    border-color: #ddd;
+    border-radius: 20px;
+    float: right;
+    margin-top: 65px;
+}
+
+.selectize-input {
+    border: 1px solid #8ce0ff;
+    padding: 6px 12px;
+    display: inline-block;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    box-shadow: none;
+    border-radius: 20px;
+    margin-top: 10px;
+}
+
+.irs--shiny .irs-from, .irs--shiny .irs-to, .irs--shiny .irs-single {
+    color: #fff;
+    text-shadow: none;
+    padding: 1px 3px;
+    background-color: #002664;
+    border-radius: 3px;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.irs--shiny .irs-bar {
+    top: 25px;
+    height: 8px;
+    border-top: 1px solid #002664;
+    border-bottom: 1px solid #002664;
+    background: #8ce0ff;
+    cursor: s-resize;
+    z-index: 2;
+}
+
+.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom {
+    -ms-touch-action: none;
+    touch-action: none;
+    height: 800px !IMPORTANT;
+}
